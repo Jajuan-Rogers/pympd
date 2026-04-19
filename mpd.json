@@ -1,0 +1,28 @@
+{
+  "python": {
+    "default": {
+      "pre_commands": [],
+      "post_commands": [],
+      "src": {
+        "dirs": [
+          "ui",
+          "ui/components",
+          "ui/bridges"
+        ],
+        "files": [
+          {
+            "main.py": "main.py"
+          }
+        ]
+      },
+      "root": {
+        "dirs": [],
+        "files": [
+          {
+            "progress.md": "progress.md"
+          }
+        ]
+      }
+    }
+  }
+}
