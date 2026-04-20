@@ -1,10 +1,15 @@
 import json
 from pathlib import Path
 from os import chdir
-import sys
+from shlex import join
+import subprocess
 from typing import cast
-from custom_types import Dir, Languages, languages, Config
-import shutil
+import sys
+from rich.style import Style
+from custom_types import  Languages, Config
+import shutil 
+from rich.prompt import Confirm
+from rich.text import Text
 from rich.console import Console
 import argparse
 
@@ -17,76 +22,55 @@ MPD_LOG_FP = Path.home() / ".config" / "mpd" / "mpd_log.log"
 EXAMPLE_FILES_DIR = Path.home() / ".config" / "mpd" / "example_files"
 
 
-
-def build_dirs(root_dirs: list[str]):
-    for dirs in root_dirs:
-        outer_dir = Path.cwd() / dirs
-        outer_dir.mkdir()
-        console.print(f"created {outer_dir.name}")
-
-
-def make_files(files: list[str], config: str):
-    for file, contents_example in files: 
-        if "{EXAMPLE}/{CONFIG}" not in file:
-            f = Path.cwd() / file
-            f.touch(exist_ok=False)
-        else:
-            file = Path(file)
-            example_file = EXAMPLE_FILES_DIR / config / file.name
-            shutil.copy(example_file, Path.cwd() / file.absolute())
+def no_example_dir_prompt():
+    rel_exmaple_dir = EXAMPLE_FILES_DIR.relative_to(Path.home()).as_posix()
+    console.print(f"ERROR: you have not set up the {rel_exmaple_dir}!")
+    return Confirm.ask("would you like to create it with the default structs ?")
 
 
 
-            
-
-
-
-
-
-def check_defined_dir_structs(config: Config, config_name):
-    if config.root and config.root["dirs"]:
-        build_dirs(config.root["dirs"])
-        if (files:=config.root["files"]):
-            make_files(files, config_name)
-    if config.src and config.src["dirs"]:
-        src_dir = Path.cwd() / "src"
-        src_dir.mkdir()
-        chdir(src_dir.absolute())
-        build_dirs(config.src["dirs"])
-        if (files:=config.src["files"]):
-            make_files(files, config_name)
+def get_example_config(language: Languages, config: str, project_dir: Path ):
+    if not EXAMPLE_FILES_DIR.exists():
+        if not no_example_dir_prompt():
+            sys.exit()
+    attempted_path = (EXAMPLE_FILES_DIR / language / config)
+    if attempted_path.exists():
+        console.print(f"[bold #1DE000]copying {config} config")
+        try:
+            project_dir.mkdir()
+        except FileExistsError:
+            console.print(f"{attempted_path.as_posix()} already exist")
+            can_overwrite = Confirm.ask("\nwould you like to overwrite it ?")
+            chdir(project_dir.absolute())
+            shutil.copytree(attempted_path, project_dir, dirs_exist_ok=can_overwrite)
+    else:
+        attempted_path = attempted_path.relative_to(Path.home()).as_posix()
+        console.print(f"[bold #DB6A00]{attempted_path}[/] [#DB001F]does not exist !")
+        sys.exit()
 
 
 
 
-
-
-    ...
-
-def copy_config_files():
-    shutil.copy(DEFAULT_CONFIG, CONFIG_DIR)
-    MPD_LOG_FP.touch(exist_ok=False)
 
 
 
 def check_for_config():
     if not CONFIG_DIR.exists():
         CONFIG_DIR.mkdir()
+        EXAMPLE_FILES_DIR.mkdir()
+        MPD_LOG_FP.touch()
         return False
     return True
-
-def get_config(language: Languages, language_config: str):
-    with CONFIG_FP.open("r") as config:
-        config = json.load(config)[language][language_config] #Config(**json.load(config)[language])
-        console.print(config)
-    return Config(**config)
 
 
 def setup():
     args = setup_parser()
     if not check_for_config():
-        console.print("[bold red]COPYING CONFIG CONTENTS")
-        copy_config_files()
+        rel_config_dir = Path.joinpath(Path.home(), CONFIG_DIR.relative_to(Path.home())).as_posix()
+        rel_examples_dir = Path.joinpath(Path.home(), EXAMPLE_FILES_DIR.relative_to(Path.home())).as_posix()
+        console.print(f"setting up {rel_config_dir}")
+        console.print(f"since {rel_config_dir} was just created you will need to",
+                      f"\nsetup the {rel_examples_dir} using the structure as shown in [#8BDB00]pympd --help")
 
     return args
         
@@ -102,23 +86,10 @@ def setup_parser():
 
 def main():
     args = setup()
-    try:
-        config = get_config(args.language, args.language_config)
-    except TypeError as e:
-        console.print("CONFIG ERROR: there was an error while reading your config", 
-                      "pleae ensure the config structure is correct",
-                      "see mpd --help")
-        console.log(e)
-    except KeyError as e:
-        console.print(f"Invalid config name:  '{args.language_config}' does NOT exist in mpd.json")
-        console.log(e)
-    else:
-        args.project_title = cast(str, args.project_title)
-        project_dir = Path.cwd() / args.project_title
-        project_dir.mkdir(exist_ok=False)
-        chdir(project_dir.absolute())
-        config_name = args.language_config
-        check_defined_dir_structs(config, config_name)
+    language = args.language
+    config = args.language_config
+    project_dir: Path = Path.cwd() / args.project_title
+    get_example_config(language, config, project_dir)
         
 
 if __name__ == "__main__":
