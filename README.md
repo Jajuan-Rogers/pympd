@@ -1,2 +1,1 @@
-another tui todo app, done the way I like it.
-
+super simple project directory creation script for any programming language
