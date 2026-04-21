@@ -1,56 +1,98 @@
-import json
 from pathlib import Path
-from os import chdir
-from shlex import join
 import subprocess
-from typing import cast
 import sys
-from rich.style import Style
-from custom_types import  Languages, Config
+from typing import Literal
 import shutil 
+from rich.panel import Panel
 from rich.prompt import Confirm
-from rich.text import Text
 from rich.console import Console
 import argparse
 
 console = Console(color_system="truecolor")
 
+Languages = Literal[
+    "python",     
+    "javaScript", 
+    "typeScript", 
+    "java",       
+    "c#",         
+    "c++",        
+    "c",          
+    "rust",       
+    "go",         
+    "swift",      
+    "kotlin",     
+    "php",        
+    "sql",        
+    "ruby",       
+    "dart"        
+]
+
 DEFAULT_CONFIG = Path(__file__).resolve().parent / "mpd.json"
 CONFIG_DIR = Path.home() / ".config" / "mpd" 
 CONFIG_FP = Path.home() / ".config" / "mpd" / "mpd.json"
 MPD_LOG_FP = Path.home() / ".config" / "mpd" / "mpd_log.log"
-EXAMPLE_FILES_DIR = Path.home() / ".config" / "mpd" / "example_files"
+EXAMPLE_FILES_DIR = Path.home() / ".config" / "mpd" / "examples"
+
+def get_commands(commands_fp: Path, command_set: Literal["PRE:", "POST:"]) -> None:
+    commands = commands_fp.read_text("utf-8").splitlines()
+    commands = [c.strip() for c in commands]
+
+    try:
+        if command_set != "PRE:":
+            START, STOP = commands.index("POST:"), len(commands) 
+        else:
+            START, STOP = 0, commands.index("POST:")
+    except ValueError:
+        console.print(f"ERROR: the .commands.txt file for {commands_fp.parent.name} example config missing pre or post key(s)")
+        console.line()
+        return
+
+    for command in commands[START:STOP]:
+        if "rm" in command:
+            console.print("mpd cannot run rm, skipping")
+            continue
+        console.print(f"[bold #1DE000]{command}")
+        # subprocess.run([*command.split()])
 
 
-def no_example_dir_prompt():
-    rel_exmaple_dir = EXAMPLE_FILES_DIR.relative_to(Path.home()).as_posix()
-    console.print(f"ERROR: you have not set up the {rel_exmaple_dir}!")
-    return Confirm.ask("would you like to create it with the default structs ?")
-
-
-
-def get_example_config(language: Languages, config: str, project_dir: Path ):
+def get_example_config(language: Languages, config: str, project_dir: Path):
     if not EXAMPLE_FILES_DIR.exists():
-        if not no_example_dir_prompt():
-            sys.exit()
-    attempted_path = (EXAMPLE_FILES_DIR / language / config)
-    if attempted_path.exists():
-        console.print(f"[bold #1DE000]copying {config} config")
-        try:
-            project_dir.mkdir()
-        except FileExistsError:
-            console.print(f"{attempted_path.as_posix()} already exist")
-            can_overwrite = Confirm.ask("\nwould you like to overwrite it ?")
-            chdir(project_dir.absolute())
-            shutil.copytree(attempted_path, project_dir, dirs_exist_ok=can_overwrite)
-    else:
+        rel_exmaple_dir = EXAMPLE_FILES_DIR.relative_to(Path.home()).as_posix()
+        console.print(f"ERROR: you have not set up the {rel_exmaple_dir}!")
+        sys.exit()
+
+    attempted_path = EXAMPLE_FILES_DIR / language / config
+
+    if not attempted_path.exists():
         attempted_path = attempted_path.relative_to(Path.home()).as_posix()
         console.print(f"[bold #DB6A00]{attempted_path}[/] [#DB001F]does not exist !")
         sys.exit()
 
+    elif project_dir.exists():
+        console.print(f"[bold #1DE000]copying {config} config")
+        console.print(f"{project_dir.as_posix()} already exist")
+        can_overwrite = Confirm.ask(
+            f"\nwould you like to overwrite {project_dir.name} ?"
+        )
+        if can_overwrite:
+            console.print(
+                Panel(
+                    "[bold #DB6A00]ARE YOU SURE ?[/]\n[bold #DB001F blink](THIS CANNOT BE UNDONE)"
+                )
+            )
+            can_overwrite = Confirm.ask()
 
+        if not can_overwrite:
+            sys.exit()
 
+        shutil.copytree(attempted_path, project_dir, dirs_exist_ok=can_overwrite)
 
+    elif not project_dir.exists():
+        commands_fp = project_dir / ".commands.txt"
+        if commands_fp.exists():
+            get_commands(commands_fp, "PRE:")
+        shutil.copytree(attempted_path, project_dir)
 
 
 

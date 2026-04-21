@@ -1,9 +1,15 @@
 [project]
 name = "pympd"
 version = "0.1.0"
-description = "Add your description here"
+description = "Cool ass lil project directory creation tool"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "rich>=15.0.0",
 ]
+
+[project.scripts]
+mpd = "main:main"
+
+[tools.setuptools]
+py-modules = ["main"]
