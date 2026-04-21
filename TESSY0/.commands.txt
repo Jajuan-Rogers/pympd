@@ -1,6 +1,0 @@
-PRE: 
-
-POST: 
-  echo "POST COMMAND DEEZ NUTS !!!"
-  echo "POST COMMAND DEEZ NUTS !!!"
-  echo "POST COMMAND DEEZ NUTS !!!"
