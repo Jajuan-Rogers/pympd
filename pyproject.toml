@@ -1,10 +1,11 @@
 [project]
 name = "pympd"
-version = "0.1.0"
+version = "0.3.0"
 description = "Cool ass lil project directory creation tool"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "nuitka>=4.0.8",
     "rich>=15.0.0",
 ]
 

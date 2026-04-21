@@ -36,33 +36,43 @@ EXAMPLE_FILES_DIR = Path.home() / ".config" / "mpd" / "examples"
 
 def get_commands(commands_fp: Path, command_set: Literal["PRE:", "POST:"]) -> None:
     commands = commands_fp.read_text("utf-8").splitlines()
-    commands = [c.strip() for c in commands]
+    commands = [c.strip() for c in commands if c.strip() != ""]
 
     try:
         if command_set != "PRE:":
-            START, STOP = commands.index("POST:"), len(commands) 
+            START, STOP = commands.index("POST:") + 1, len(commands) 
         else:
-            START, STOP = 0, commands.index("POST:")
+            START, STOP = 1, commands.index("POST:")
     except ValueError:
         console.print(f"ERROR: the .commands.txt file for {commands_fp.parent.name} example config missing pre or post key(s)")
         console.line()
         return
 
+
+    if len(commands[START:STOP]) == 0:
+        return
     for command in commands[START:STOP]:
         if "rm" in command:
             console.print("mpd cannot run rm, skipping")
             continue
         console.print(f"[bold #1DE000]{command}")
-        # subprocess.run([*command.split()])
+        try:
+            subprocess.run([*command.split()])
+        except subprocess.CalledProcessError:
+            console.print(f"[bold #DB001F]The following command failed: {command} ")
+        continue
+
 
 
 def get_example_config(language: Languages, config: str, project_dir: Path):
+    commands_fp = project_dir / ".commands.txt"
     if not EXAMPLE_FILES_DIR.exists():
         rel_exmaple_dir = EXAMPLE_FILES_DIR.relative_to(Path.home()).as_posix()
         console.print(f"ERROR: you have not set up the {rel_exmaple_dir}!")
         sys.exit()
 
     attempted_path = EXAMPLE_FILES_DIR / language / config
+    attempted_cmd_path = attempted_path / ".commands.txt"
 
     if not attempted_path.exists():
         attempted_path = attempted_path.relative_to(Path.home()).as_posix()
@@ -71,28 +81,29 @@ def get_example_config(language: Languages, config: str, project_dir: Path):
 
     elif project_dir.exists():
         console.print(f"[bold #1DE000]copying {config} config")
-        console.print(f"{project_dir.as_posix()} already exist")
+        console.print(f"{project_dir.parent.name}/{project_dir.name} already exist")
         can_overwrite = Confirm.ask(
-            f"\nwould you like to overwrite {project_dir.name} ?"
+            f"\nwould you like to overwrite {project_dir.parent.name}/{project_dir.name} ?"
         )
         if can_overwrite:
             console.print(
                 Panel(
                     "[bold #DB6A00]ARE YOU SURE ?[/]\n[bold #DB001F blink](THIS CANNOT BE UNDONE)"
-                )
+                ), justify="center"
             )
             can_overwrite = Confirm.ask()
 
         if not can_overwrite:
             sys.exit()
 
-        shutil.copytree(attempted_path, project_dir, dirs_exist_ok=can_overwrite)
-
-    elif not project_dir.exists():
-        commands_fp = project_dir / ".commands.txt"
-        if commands_fp.exists():
+        if attempted_cmd_path.exists():
             get_commands(commands_fp, "PRE:")
-        shutil.copytree(attempted_path, project_dir)
+        shutil.copytree(attempted_path, project_dir, dirs_exist_ok=can_overwrite)
+        get_commands(commands_fp, "POST:")
+        return
+
+    shutil.copytree(attempted_path, project_dir)
+    get_commands(commands_fp, "POST:")
 
 
 
