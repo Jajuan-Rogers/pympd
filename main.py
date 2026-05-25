@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import os
 import sys
 from typing import Literal
 import shutil 
@@ -51,6 +52,7 @@ def get_commands(commands_fp: Path, command_set: Literal["PRE:", "POST:"]) -> No
 
     if len(commands[START:STOP]) == 0:
         return
+    if command_set == "POST:": 
     for command in commands[START:STOP]:
         if "rm" in command:
             console.print("mpd cannot run rm, skipping")

@@ -1,0 +1,9 @@
+PRE: 
+  echo "pre tessy"
+
+POST: 
+  echo "post tessy"
+  pwd
+  df -h
+
+

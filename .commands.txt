@@ -1,0 +1,9 @@
+PRE:
+  uv init
+  git init
+  git add .
+  git commit -m "initial commit"
+  echo ".progress.md" >> .gitignore
+
+POST:
+  NONE
